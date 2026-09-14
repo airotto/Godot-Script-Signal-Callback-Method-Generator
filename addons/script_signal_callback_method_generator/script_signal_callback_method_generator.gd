@@ -2,11 +2,11 @@
 extends EditorPlugin
 
 #region Settings
-const F_LINE_SPACE:int = 2 ##[code]F_ACTION_MODE[/code]が[code]_ActionMode.GENERATE[/code]の時に生成時の上の関数との行間隔
-const F_TYPE:String = "void" ##戻り値。空でも可
+const F_LINE_SPACE:int = 2 ##[code]F_ACTION_MODE[/code]が[code]_ActionMode.GENERATE[/code]の時、生成時の上の関数との行間隔
+const F_TYPE:String = "void" ##戻り型。空でも可
 const F_INDENT:String = "	"
 const F_INITIAL_TEXT:String = "pass"
-const F_SELECT_INITIAL_TEXT:bool = true ##[code]F_ACTION_MODE[/code]が[code]_ActionMode.GENERATE[/code]の時に生成時に自動で[code]F_INITIAL_TEXT[/code]を選択する
+const F_SELECT_INITIAL_TEXT:bool = true ##[code]F_ACTION_MODE[/code]が[code]_ActionMode.GENERATE[/code]の時、生成時に自動で[code]F_INITIAL_TEXT[/code]を選択する
 const F_CREATE_CONNECT:bool = true ##connect()を作成する。[br][note][code]F_ACTION_MODE[/code]が何の場合でもこの設定は機能します。[/note]
 const F_ACTION_MODE:_ActionMode = _ActionMode.GENERATE
 const F_ACTION_GENERATE_MODE:_ActionGenerateMode = _ActionGenerateMode.NEXT
@@ -18,6 +18,10 @@ enum _ActionGenerateMode{
 	BOTTOM, ##最下部
 	NEXT, ##次にインデントが無い行
 }
+
+const F_ENABLE_CONNECT_ONLY_ACTION:bool = true ##connect()作成のみのアクションを新たに追加する
+const F_FORCE_GENERATE:bool = false ##[code]F_ACTION_MODE[/code]が[code]_ActionMode.GENERATE[/code]の時、すでにその名前の関数がある場合でも作成する
+
 #endregion
 
 
@@ -53,24 +57,77 @@ func _is_signal(text:String) -> bool:
 	#print(locale)
 	#print(text)
 	
-	##自分用なので適当
+	
 	const LOCALE_SIGNAL_NAME_HASHMAP:Dictionary[String, String] = {
 		"en":"Signal",
 		"ar":"الإشارة",
+		"bg":"Сигнал",
+		"bn":"Signal",
+		"ca":"Senyal",
+		"cs":"Signál",
 		"de":"Ereignis",
+		"el":"Σήμα",
+		"eo":"Signalo",
 		"es":"Señal",
+		"es_AR":"Señal",
+		"et":"Signaal",
+		"fa":"نشانه",
+		"fi":"Signaali",
 		"fr":"Signaux",
+		"ga":"Comhartha",
+		"gl":"Sinal",
+		"he":"אות",
+		"hu":"Jelzés",
+		"id":"Sinyal",
 		"it":"Segnale",
 		"ja":"シグナル",
+		"ka":"სიგნალი",
 		"ko":"시그널",
+		"lo":"ສັນຍານ",
+		"nl":"Signaal",
+		"pl":"Sygnał",
 		"pt":"Sinal",
+		"pt_BR":"Sinal",
+		"ro":"Semnal",
+		"ru":"Сигнал",
+		"sk":"Signál",
+		"sv":"Signal",
+		"ta":"குறிகை",
+		"th":"สัญญาณ",
+		"tok":"Signal",
+		"tr":"Sinyal",
 		"uk":"Сигнал",
+		"vi":"Tín hiệu",
 		"zh_Hans":"信号",
 		"zh_Hant":"訊號",
 		
 	}
 	
 	return text.begins_with(LOCALE_SIGNAL_NAME_HASHMAP.get(locale, "Signal") )
+
+func _get_action_text_for_create_signal_callback_method() -> String:
+	match TranslationServer.get_locale():
+		"ja":
+			match F_ACTION_MODE:
+				_ActionMode.COPY:
+					return "シグナルのコールバックメソッドをクリップボードにコピー"
+				_ActionMode.GENERATE:
+					return "シグナルのコールバックメソッドを作成"
+		_:
+			match F_ACTION_MODE:
+				_ActionMode.COPY:
+					return "Copy the Signal callback method to the clipboard"
+				_ActionMode.GENERATE:
+					return "Create the Signal callback method"
+	return "Error text"
+
+func _get_action_text_for_create_connect_only() -> String:
+	match TranslationServer.get_locale():
+		"ja":
+			return "接続のみを作成"
+		_:
+			return "Create connect only"
+	return "Error text"
 
 #####################################
 #####################################
@@ -84,7 +141,8 @@ func initialized() -> void:
 	update_code_edits(script_editor)
 
 const EditorHelpBitToolTipHelper = preload("uid://cjxcsth0mfqhe")
-const _CONVERT_TO_PATH_OR_UID_META_CLICK_TEXT:String = "convert_to_path_or_uid"
+const _ACTION_CREATE_SIGNAL_CALLBACK_METHOD_META:String = "create_signal_callback_method"
+const _ACTION_CREATE_CONNECT_ONLY_META:String = "create_connect_only"
 
 
 func _on_symbol_hovered(symbol: String, line: int, column: int, code_edit:CodeEdit) -> void:
@@ -110,48 +168,55 @@ func _on_symbol_hovered(symbol: String, line: int, column: int, code_edit:CodeEd
 
 
 func _trigger(symbol: String, line: int, column: int, code_edit:CodeEdit, tooltip_helper:EditorHelpBitToolTipHelper) -> void:
+	var action_quantity:int = 0
 	
-	tooltip_helper.text_label.newline()
-	tooltip_helper.text_label.push_meta(_CONVERT_TO_PATH_OR_UID_META_CLICK_TEXT, RichTextLabel.META_UNDERLINE_ON_HOVER)
+	_add_action(
+		_ACTION_CREATE_SIGNAL_CALLBACK_METHOD_META,
+		EditorInterface.get_base_control().get_theme_icon(&"Signal", &"EditorIcons"),
+		_get_action_text_for_create_signal_callback_method(),
+		tooltip_helper
+	)
+	action_quantity += 1
 	
+	if F_ENABLE_CONNECT_ONLY_ACTION:
+		_add_action(
+		_ACTION_CREATE_CONNECT_ONLY_META,
+		EditorInterface.get_base_control().get_theme_icon(&"Signals", &"EditorIcons"),
+		_get_action_text_for_create_connect_only(),
+		tooltip_helper
+		)
+		action_quantity += 1
 	
-	var icon:Texture2D = EditorInterface.get_base_control().get_theme_icon(&"Signal", &"EditorIcons")
-	tooltip_helper.text_label.add_image(icon)
-	tooltip_helper.text_label.add_text("  ")
-	
-	var text:String = ""
-	
-	var locale:String = TranslationServer.get_locale()
-	match locale:
-		"ja":
-			match F_ACTION_MODE:
-				_ActionMode.COPY:
-					text = "シグナルのコールバックメソッドをクリップボードにコピー"
-				_ActionMode.GENERATE:
-					text = "シグナルのコールバックメソッドを作成"
-		_:
-			match F_ACTION_MODE:
-				_ActionMode.COPY:
-					text = "Copy the Signal callback method to the clipboard"
-				_ActionMode.GENERATE:
-					text = "Create the Signal callback method"
-	
-	
-	tooltip_helper.text_label.add_text(text)
-	
-	
-	tooltip_helper.text_label.pop()
 	tooltip_helper.text_label.meta_clicked.connect(_on_meta_clicked.bind(symbol, line, column, code_edit, tooltip_helper))
 	
 	if not tooltip_helper.text_label.is_finished():
 		await tooltip_helper.text_label.finished
 	
-	tooltip_helper.tooltip.size.y += tooltip_helper.text_label.get_line_height(0)
+	for i in range(action_quantity, 0, -1):
+		tooltip_helper.tooltip.size.y += tooltip_helper.text_label.get_line_height(tooltip_helper.text_label.get_line_count() - i)
+	
+	tooltip_helper.tooltip.size.y += tooltip_helper.text_label.get_line_height(tooltip_helper.text_label.get_line_count() - 1)
 
 
 func _on_meta_clicked(meta:Variant, symbol: String, line: int, column: int, code_edit:CodeEdit, tooltip_helper:EditorHelpBitToolTipHelper) -> void:
-	if meta == _CONVERT_TO_PATH_OR_UID_META_CLICK_TEXT:
+	if meta == _ACTION_CREATE_SIGNAL_CALLBACK_METHOD_META:
 		_create_signal_callback_method(symbol, line, column, code_edit, tooltip_helper)
+	if meta == _ACTION_CREATE_CONNECT_ONLY_META:
+		_create_connect(symbol, line, column, code_edit)
+
+
+func _add_action(meta:Variant, icon:Texture2D, text:String, tooltip_helper:EditorHelpBitToolTipHelper) -> void:
+	tooltip_helper.text_label.newline()
+	tooltip_helper.text_label.push_meta(meta, RichTextLabel.META_UNDERLINE_ON_HOVER)
+	
+	tooltip_helper.text_label.add_image(icon)
+	tooltip_helper.text_label.add_text("  ")
+	
+	tooltip_helper.text_label.add_text(text)
+	
+	
+	tooltip_helper.text_label.pop()
+
 
 
 func _create_signal_callback_method(symbol: String, line: int, column: int, code_edit:CodeEdit, tooltip_helper:EditorHelpBitToolTipHelper) -> void:
@@ -162,6 +227,7 @@ func _create_signal_callback_method(symbol: String, line: int, column: int, code
 	if F_CREATE_CONNECT:
 		code_edit.begin_complex_operation()
 		already_begin_complex_operation = true
+		
 		_create_connect(symbol, line, column, code_edit)
 	
 	
@@ -171,9 +237,32 @@ func _create_signal_callback_method(symbol: String, line: int, column: int, code
 			if already_begin_complex_operation:
 				code_edit.end_complex_operation()
 		_ActionMode.GENERATE:
+			
+			
+			if not F_FORCE_GENERATE:
+				var serch_text:String = "func " + _get_function_name(symbol, line, column, code_edit)
+				for i in code_edit.get_line_count():
+					if code_edit.get_line(i).begins_with(serch_text):
+						#code_edit.select(i, 0, i, code_edit.get_line(i).length())
+						if already_begin_complex_operation:
+							code_edit.end_complex_operation()
+						
+						match TranslationServer.get_locale():
+							"ja":
+								print("すでにその名前の関数が存在するため作成されませんでした。(この動作は F_FORCE_GENERATE で変更できます)")
+							_:
+								print("The function was not created because a function with that name already exists. (This behavior can be changed in F_FORCE_GENERATE.)")
+						return
+			
+			
 			if not already_begin_complex_operation:
 				code_edit.begin_complex_operation()
 			_force_final_new_line(code_edit)
+			
+			
+			
+			
+			
 			
 			
 			
@@ -217,7 +306,7 @@ func _create_signal_callback_method(symbol: String, line: int, column: int, code
 			code_edit.end_complex_operation()
 
 
-func _create_connect(symbol: String, line: int, column: int, code_edit:CodeEdit) -> void:
+func _create_connect(symbol: String, line: int, column: int, code_edit:CodeEdit) -> bool:
 	var is_property:bool = true
 	##これがsignalが宣言されている場所ならconnectは作らない
 	var left:String = code_edit.get_line(line).left(column)
@@ -238,6 +327,22 @@ func _create_connect(symbol: String, line: int, column: int, code_edit:CodeEdit)
 				line,
 				 code_edit.get_line(line).length()
 			)
+			return true
+	
+	
+	if is_property:
+		match TranslationServer.get_locale():
+			"ja":
+				print("すでに続きが記述されているため接続が作成されませんでした。")
+			_:
+				print("Since the rest has already been entered, connect was not created.")
+	else:
+		match TranslationServer.get_locale():
+			"ja":
+				print("宣言位置なため接続が作成されませんでした。")
+			_:
+				print("A connection was not created because it was a declaration.")
+	return false
 
 
 

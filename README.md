@@ -1,2 +1,1 @@
 # script_signal_callback_method_generator
-
