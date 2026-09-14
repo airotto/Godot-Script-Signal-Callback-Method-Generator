@@ -4,7 +4,7 @@ extends RefCounted
 var _plugin_name:String
 var _setting_property_list:Array[String]
 
-
+##これを継承先で使用してadd_settingをしてください。
 @abstract func _add_settings_initialized() -> void
 
 
