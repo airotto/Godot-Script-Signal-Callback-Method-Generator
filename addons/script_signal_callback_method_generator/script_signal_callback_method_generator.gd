@@ -1,15 +1,8 @@
 @tool
 extends EditorPlugin
 
-const _PLUGIN_SETTIGNS_DIR:String = "plugins/script_signal_callback_method_generator/"
-enum _ActionMode{
-	COPY, ##クリップボードにコピー
-	GENERATE, ##生成されます。位置については[code]_ActionGenerateMode[/code]
-}
-enum _ActionGenerateMode{
-	BOTTOM, ##最下部
-	NEXT, ##次にインデントが無い行
-}
+const Setting = preload("uid://cx3mwmieov2vg")
+var setting:Setting
 
 func _enable_plugin() -> void:
 	# Add autoloads here.
@@ -24,7 +17,8 @@ func _disable_plugin() -> void:
 func _enter_tree() -> void:
 	# Initialization of the plugin goes here.
 	pass
-	initialized_settings()
+	setting = Setting.new("script_signal_callback_method_generator", self)
+	
 	initialized()
 
 
@@ -32,93 +26,11 @@ func _enter_tree() -> void:
 func _exit_tree() -> void:
 	# Clean-up of the plugin goes here.
 	pass
-	if get_setting_clear_editor_settings_when_disabling_the_plugin():
-		remove_setting_all()
 
 
 #####################################
 #####################################
-func initialized_settings() -> void:
-	##[code]F_ACTION_MODE[/code]が[code]_ActionMode.GENERATE[/code]の時、生成時の上の関数との行間隔
-	add_setting("line_space", 2, TYPE_INT, PROPERTY_HINT_RANGE, "0, 1, 1, or_greater")
-	##戻り型。空でも可
-	add_setting("type", "void", TYPE_STRING)
-	
-	add_setting("initial_text", "pass", TYPE_STRING)
-	##[code]F_ACTION_MODE[/code]が[code]_ActionMode.GENERATE[/code]の時、生成時に自動で[code]F_INITIAL_TEXT[/code]を選択する
-	add_setting("select_initial_text", true, TYPE_BOOL)
-	##connect()を作成する。[br][note][code]F_ACTION_MODE[/code]が何の場合でもこの設定は機能します。[/note]
-	add_setting("create_connect", true, TYPE_BOOL)
-	
-	add_setting("action_mode", _ActionMode.find_key(_ActionMode.GENERATE), TYPE_STRING, PROPERTY_HINT_ENUM, ",".join(_ActionMode.keys()) )
-	
-	add_setting("action_generate_mode", _ActionGenerateMode.find_key(_ActionGenerateMode.NEXT), TYPE_STRING, PROPERTY_HINT_ENUM, ",".join(_ActionGenerateMode.keys()) )
-	##connect()作成のみのアクションを新たに追加する
-	add_setting("enable_connect_only_action", true, TYPE_BOOL)
-	##[code]F_ACTION_MODE[/code]が[code]_ActionMode.GENERATE[/code]の時、すでにその名前の関数がある場合でも作成する
-	add_setting("force_generate", false, TYPE_BOOL)
-	
-	# Clear Editor Settings When Disabling the Plugin
-	add_setting("other/clear_editor_settings_when_disabling_the_plugin", false, TYPE_BOOL)
-	
 
-
-func add_setting(property:String, default_value:Variant, type:Variant.Type, hint:PropertyHint = PROPERTY_HINT_NONE, hint_string:String = "") -> void:
-	var settings := EditorInterface.get_editor_settings()
-	
-	var final_property:String = _PLUGIN_SETTIGNS_DIR + property
-	
-	if not settings.has_setting(final_property):
-		settings.set(final_property, default_value)
-	
-	
-	var property_info = {
-		"name": final_property,
-		"type": type,
-		"hint": hint,
-		"hint_string": hint_string,
-	}
-	
-	settings.add_property_info(property_info)
-	settings.set_initial_value(final_property, default_value, false)
-	
-	
-	
-	
-
-func remove_setting_all() -> void:
-	remove_setting("line_space")
-	remove_setting("type")
-	remove_setting("initial_text")
-	remove_setting("select_initial_text")
-	remove_setting("create_connect")
-	remove_setting("action_mode")
-	remove_setting("action_generate_mode")
-	remove_setting("enable_connect_only_action")
-	remove_setting("force_generate")
-	remove_setting("other/clear_editor_settings_when_disabling_the_plugin")
-	
-
-func remove_setting(property:String) -> void:
-	var settings := EditorInterface.get_editor_settings()
-	settings.erase(_PLUGIN_SETTIGNS_DIR + property)
-	
-
-
-func get_setting(property:String) -> Variant:
-	var settings := EditorInterface.get_editor_settings()
-	return settings.get_setting(_PLUGIN_SETTIGNS_DIR + property)
-
-func get_setting_line_space() -> int: return get_setting("line_space")
-func get_setting_type() -> String: return get_setting("type")
-func get_setting_initial_text() -> String: return get_setting("initial_text")
-func get_setting_select_initial_text() -> bool: return get_setting("select_initial_text")
-func get_setting_create_connect() -> bool: return get_setting("create_connect")
-func get_setting_action_mode() -> _ActionMode: return _ActionMode[get_setting("action_mode")]
-func get_setting_action_generate_mode() -> _ActionGenerateMode: return _ActionGenerateMode[get_setting("action_generate_mode")]
-func get_setting_enable_connect_only_action() -> bool: return get_setting("enable_connect_only_action")
-func get_setting_force_generate() -> bool: return get_setting("force_generate")
-func get_setting_clear_editor_settings_when_disabling_the_plugin() -> bool: return get_setting("clear_editor_settings_when_disabling_the_plugin")
 
 
 #####################################
@@ -183,16 +95,16 @@ func _is_signal(text:String) -> bool:
 func _get_action_text_for_create_signal_callback_method() -> String:
 	match TranslationServer.get_locale():
 		"ja":
-			match get_setting_action_mode():
-				_ActionMode.COPY:
+			match setting.get_setting_action_mode():
+				Setting.ActionMode.COPY:
 					return "シグナルのコールバックメソッドをクリップボードにコピー"
-				_ActionMode.GENERATE:
+				Setting.ActionMode.GENERATE:
 					return "シグナルのコールバックメソッドを作成"
 		_:
-			match get_setting_action_mode():
-				_ActionMode.COPY:
+			match setting.get_setting_action_mode():
+				Setting.ActionMode.COPY:
 					return "Copy the Signal callback method to the clipboard"
-				_ActionMode.GENERATE:
+				Setting.ActionMode.GENERATE:
 					return "Create the Signal callback method"
 	return "Error text"
 
@@ -253,7 +165,7 @@ func _trigger(symbol: String, line: int, column: int, code_edit:CodeEdit, toolti
 	)
 	action_quantity += 1
 	
-	if get_setting_enable_connect_only_action():
+	if setting.get_setting_enable_connect_only_action():
 		_add_action(
 		_ACTION_CREATE_CONNECT_ONLY_META,
 		EditorInterface.get_base_control().get_theme_icon(&"Signals", &"EditorIcons"),
@@ -299,22 +211,22 @@ func _create_signal_callback_method(symbol: String, line: int, column: int, code
 	
 	var already_begin_complex_operation:bool = false
 	
-	if get_setting_create_connect():
+	if setting.get_setting_create_connect():
 		code_edit.begin_complex_operation()
 		already_begin_complex_operation = true
 		
 		_create_connect(symbol, line, column, code_edit)
 	
 	
-	match get_setting_action_mode():
-		_ActionMode.COPY:
+	match setting.get_setting_action_mode():
+		Setting.ActionMode.COPY:
 			DisplayServer.clipboard_set(function_text)
 			if already_begin_complex_operation:
 				code_edit.end_complex_operation()
-		_ActionMode.GENERATE:
+		Setting.ActionMode.GENERATE:
 			
 			
-			if not get_setting_force_generate():
+			if not setting.get_setting_force_generate():
 				var serch_text:String = "func " + _get_function_name(symbol, line, column, code_edit)
 				for i in code_edit.get_line_count():
 					if code_edit.get_line(i).begins_with(serch_text):
@@ -343,10 +255,10 @@ func _create_signal_callback_method(symbol: String, line: int, column: int, code
 			
 			var callback_create_line:int
 			
-			match get_setting_action_generate_mode():
-				_ActionGenerateMode.BOTTOM:
+			match setting.get_setting_action_generate_mode():
+				Setting.ActionGenerateMode.BOTTOM:
 					callback_create_line = code_edit.get_line_count() - 1
-				_ActionGenerateMode.NEXT:
+				Setting.ActionGenerateMode.NEXT:
 					_force_final_new_line(code_edit)
 					
 					##次にインデントが無い行を探す
@@ -370,13 +282,13 @@ func _create_signal_callback_method(symbol: String, line: int, column: int, code
 			code_edit.insert_line_at(callback_create_line, function_text)
 			
 			code_edit.set_caret_line(callback_create_line + 1)
-			if get_setting_select_initial_text():
+			if setting.get_setting_select_initial_text():
 				
 				code_edit.select(
-					callback_create_line + get_setting_line_space() + 1,
+					callback_create_line + setting.get_setting_line_space() + 1,
 					_get_indent().length(),
-					callback_create_line + get_setting_line_space() + 1,
-					_get_indent().length() + get_setting_initial_text().length()
+					callback_create_line + setting.get_setting_line_space() + 1,
+					_get_indent().length() + setting.get_setting_initial_text().length()
 				)
 			
 			code_edit.end_complex_operation()
@@ -440,7 +352,7 @@ func _get_function_text(symbol: String, line: int, column: int, code_edit:CodeEd
 	var arg:String = "(" + title_text.get_slice("(", 1)
 	arg = arg.replace(" ", " ")##正しいスペースに直す。元はU+00A0でエラーが出る
 	
-	var function_text:String = "\n".repeat(0 if get_setting_action_mode() == _ActionMode.COPY else get_setting_line_space()) + "func " + _get_function_name(symbol, line, column, code_edit) + arg + (" -> " + get_setting_type() if get_setting_type() else "") + ":" + "\n" + _get_indent() + get_setting_initial_text()
+	var function_text:String = "\n".repeat(0 if setting.get_setting_action_mode() == Setting.ActionMode.COPY else setting.get_setting_line_space()) + "func " + _get_function_name(symbol, line, column, code_edit) + arg + (" -> " + setting.get_setting_type() if setting.get_setting_type() else "") + ":" + "\n" + _get_indent() + setting.get_setting_initial_text()
 	
 	return function_text
 
