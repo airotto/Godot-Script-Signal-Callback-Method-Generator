@@ -99,13 +99,8 @@ func set_description(property_name:String, locale:String, description:String) ->
 	
 	_setting_description_list[property][locale] = description
 
-func code_block(text:String) -> String:
-	const CODEBLOCK_FONT_PATH:String = "res://addons/script_signal_callback_method_generator/codeblock_font.res"
-	if not ResourceLoader.exists(CODEBLOCK_FONT_PATH):
-		var codeblock_font := EditorInterface.get_editor_theme().get_font(&"font", &"CodeEdit")
-		ResourceSaver.save(codeblock_font, CODEBLOCK_FONT_PATH)
-	
-	return "[color=#d68f8f][bgcolor=#151515][font=" + CODEBLOCK_FONT_PATH + "]" + text + "[/font][/bgcolor][/color]"
+
+
 
 func _description_system_initialized() -> void:
 	var editor_settings_dialog:Node = EditorInterface.get_base_control().find_child("*EditorSettingsDialog*", false, false)
@@ -135,4 +130,58 @@ func _on_tooltip_entered(tooltip_helper:EditorHelpBitToolTipHelper) -> void:
 			var locale:String = TranslationServer.get_locale()
 			if locale_description_list.has(locale):
 				description = locale_description_list[locale]
-			tooltip_helper.text_label.text = description
+			tooltip_helper.text_label.text = _convert_custom_bbcode(description)
+
+func _convert_custom_bbcode(text:String) -> String:
+	const CODE_FONT_PATH:String = "res://addons/script_signal_callback_method_generator/cache/code_font.res"
+	if not ResourceLoader.exists(CODE_FONT_PATH):
+		var code_font := EditorInterface.get_editor_theme().get_font(&"font", &"CodeEdit")
+		ResourceSaver.save(code_font, CODE_FONT_PATH)
+	
+	const NOTE_ICON_PATH:String = "res://addons/script_signal_callback_method_generator/cache/note_icon.res"
+	if not ResourceLoader.exists(NOTE_ICON_PATH):
+		var note_icon := EditorInterface.get_editor_theme().get_icon(&"NodeInfo", &"EditorIcons")
+		ResourceSaver.save(note_icon, NOTE_ICON_PATH)
+	const WARNING_ICON_PATH:String = "res://addons/script_signal_callback_method_generator/cache/warning_icon.res"
+	if not ResourceLoader.exists(WARNING_ICON_PATH):
+		var note_icon := EditorInterface.get_editor_theme().get_icon(&"NodeWarning", &"EditorIcons")
+		ResourceSaver.save(note_icon, WARNING_ICON_PATH)
+	const TIP_ICON_PATH:String = "res://addons/script_signal_callback_method_generator/cache/tip_icon.res"
+	if not ResourceLoader.exists(TIP_ICON_PATH):
+		var note_icon := EditorInterface.get_editor_theme().get_icon(&"StatusSuccess", &"EditorIcons")
+		ResourceSaver.save(note_icon, TIP_ICON_PATH)
+	const IMPORTANT_ICON_PATH:String = "res://addons/script_signal_callback_method_generator/cache/important_icon.res"
+	if not ResourceLoader.exists(IMPORTANT_ICON_PATH):
+		var note_icon := EditorInterface.get_editor_theme().get_icon(&"StatusWarning", &"EditorIcons")
+		ResourceSaver.save(note_icon, IMPORTANT_ICON_PATH)
+	
+	
+	
+	## editor/doc/editor_help.cpp 2740
+	var code_color:String = _get_editor_color(&"code_color", &"EditorHelp").lerp(_get_editor_color(&"error_color", &"Editor"), 0.6).to_html()
+	var code_bg_color:String = _get_editor_color(&"code_bg_color", &"EditorHelp").to_html()
+	text = text.replace("[code]", "[color=" + code_color + "][bgcolor=" + code_bg_color + "][font=" + CODE_FONT_PATH + "]")
+	text = text.replace("[/code]", "[/font][/bgcolor][/color]")
+	
+	var note_color:String = _get_editor_color(&"note_color", &"EditorHelp").to_html()
+	text = text.replace("[note]", "[color=" + note_color +"][img color=" + note_color + "]" + NOTE_ICON_PATH +  "[/img]" + "[b]Note[/b]: ")
+	text = text.replace("[/note]", "[/color]")
+	
+	var warning_color:String = _get_editor_color(&"warning_color", &"EditorHelp").to_html()
+	text = text.replace("[warning]", "[color=" + warning_color +"][img color=" + warning_color + "]" + WARNING_ICON_PATH +  "[/img]" + "[b]Warnig[/b]: ")
+	text = text.replace("[/warning]", "[/color]")
+	
+	var tip_color:String = _get_editor_color(&"tip_color", &"EditorHelp").to_html()
+	text = text.replace("[tip]", "[color=" + tip_color +"][img color=" + tip_color + "]" + TIP_ICON_PATH +  "[/img]" + "[b]Tip[/b]: ")
+	text = text.replace("[/tip]", "[/color]")
+	
+	var important_color:String = _get_editor_color(&"important_color", &"EditorHelp").to_html()
+	text = text.replace("[important]", "[color=" + important_color +"][img color=" + important_color + "]" + IMPORTANT_ICON_PATH +  "[/img]" + "[b]Important[/b]: ")
+	text = text.replace("[/important]", "[/color]")
+	
+	
+	return text
+
+
+func _get_editor_color(name:StringName, theme_type:StringName) -> Color:
+	return EditorInterface.get_editor_theme().get_color(name, theme_type)
