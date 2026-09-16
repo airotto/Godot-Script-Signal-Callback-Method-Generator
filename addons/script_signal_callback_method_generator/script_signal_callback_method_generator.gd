@@ -143,8 +143,8 @@ func _on_symbol_hovered(symbol: String, line: int, column: int, code_edit:CodeEd
 	
 	var tooltip_helper:EditorHelpBitToolTipHelper = EditorHelpBitToolTipHelper.new(tooltip_node)
 	
-	if tooltip_helper.tooltip.has_meta(&"_triggered___plugin_script_signal_function_generator"):return
-	tooltip_helper.tooltip.set_meta(&"_triggered___plugin_script_signal_function_generator", true)
+	if tooltip_helper.tooltip.has_meta(&"_triggered___plugin_script_signal_callback_method_generator"):return
+	tooltip_helper.tooltip.set_meta(&"_triggered___plugin_script_signal_callback_method_generator", true)
 	
 	
 	var title_text:String = tooltip_helper.title_label.get_parsed_text()
