@@ -39,61 +39,14 @@ func _exit_tree() -> void:
 
 #signal  test_test_test
 func _is_signal(text:String) -> bool:
-	var locale:String = TranslationServer.get_locale()
-	#print()
-	#print(locale)
-	#print(text)
+	var editor_domain := TranslationServer.get_or_add_domain(&"godot.editor")
 	
+	var signal_string:String = editor_domain.translate(&"Signal")
 	
-	const LOCALE_SIGNAL_NAME_HASHMAP:Dictionary[String, String] = {
-		"en":"Signal",
-		"ar":"الإشارة",
-		"bg":"Сигнал",
-		"bn":"Signal",
-		"ca":"Senyal",
-		"cs":"Signál",
-		"de":"Ereignis",
-		"el":"Σήμα",
-		"eo":"Signalo",
-		"es":"Señal",
-		"es_AR":"Señal",
-		"et":"Signaal",
-		"fa":"نشانه",
-		"fi":"Signaali",
-		"fr":"Signaux",
-		"ga":"Comhartha",
-		"gl":"Sinal",
-		"he":"אות",
-		"hu":"Jelzés",
-		"id":"Sinyal",
-		"it":"Segnale",
-		"ja":"シグナル",
-		"ka":"სიგნალი",
-		"ko":"시그널",
-		"lo":"ສັນຍານ",
-		"nl":"Signaal",
-		"pl":"Sygnał",
-		"pt":"Sinal",
-		"pt_BR":"Sinal",
-		"ro":"Semnal",
-		"ru":"Сигнал",
-		"sk":"Signál",
-		"sv":"Signal",
-		"ta":"குறிகை",
-		"th":"สัญญาณ",
-		"tok":"Signal",
-		"tr":"Sinyal",
-		"uk":"Сигнал",
-		"vi":"Tín hiệu",
-		"zh_Hans":"信号",
-		"zh_Hant":"訊號",
-		
-	}
-	
-	return text.begins_with(LOCALE_SIGNAL_NAME_HASHMAP.get(locale, "Signal") )
+	return text.begins_with(signal_string)
 
 func _get_action_text_for_create_signal_callback_method() -> String:
-	match TranslationServer.get_locale():
+	match TranslationServer.get_tool_locale():
 		"ja":
 			match setting.get_setting_action_mode():
 				Setting.ActionMode.COPY:
@@ -109,7 +62,7 @@ func _get_action_text_for_create_signal_callback_method() -> String:
 	return "Error text"
 
 func _get_action_text_for_create_connect_only() -> String:
-	match TranslationServer.get_locale():
+	match TranslationServer.get_tool_locale():
 		"ja":
 			return "接続のみを作成"
 		_:
@@ -234,7 +187,7 @@ func _create_signal_callback_method(symbol: String, line: int, column: int, code
 						if already_begin_complex_operation:
 							code_edit.end_complex_operation()
 						
-						match TranslationServer.get_locale():
+						match TranslationServer.get_tool_locale():
 							"ja":
 								print("すでにその名前の関数が存在するため作成されませんでした。(この動作は 'force_generate' で変更できます)")
 							_:
@@ -331,13 +284,13 @@ func _create_connect(symbol: String, line: int, column: int, code_edit:CodeEdit)
 	
 	
 	if is_property:
-		match TranslationServer.get_locale():
+		match TranslationServer.get_tool_locale():
 			"ja":
 				print("すでに続きが記述されているため接続が作成されませんでした。")
 			_:
 				print("Since the rest has already been entered, connect was not created.")
 	else:
-		match TranslationServer.get_locale():
+		match TranslationServer.get_tool_locale():
 			"ja":
 				print("宣言位置なため接続が作成されませんでした。")
 			_:
